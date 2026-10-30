@@ -3,18 +3,17 @@
 
 import json
 from datetime import datetime
+from itertools import count
 
 # Global state
 orders = {}
-next_id = 1
+ORDER_IDS = count(1)
 menu = {}
 VALID_STATUSES = ["placed", "cooking", "out_for_delivery", "delivered"]
 
 
 def create_order(customer, items, order_history=None):
     """Create a food delivery order and return its ID."""
-    global next_id
-
     if order_history is None:
         order_history = []
 
@@ -22,16 +21,16 @@ def create_order(customer, items, order_history=None):
     for item in items:
         total += menu.get(item, 99)
 
-    orders[next_id] = {
+    order_id = next(ORDER_IDS)
+
+    orders[order_id] = {
         "customer": customer,
         "items": items,
         "total": total,
         "status": "placed"
     }
 
-    order_history.append(next_id)
-    next_id += 1
-
+    order_history.append(order_id)
     return order_history[-1]
 
 
@@ -49,18 +48,19 @@ def update_order_status(order_id, status):
 
 def read_menu_config(file="menu.json"):
     """Read menu configuration or use the default menu."""
-    global menu
-
     try:
         with open(file, "r", encoding="utf-8") as menu_file:
-            menu = json.load(menu_file)
+            loaded_menu = json.load(menu_file)
     except (FileNotFoundError, json.JSONDecodeError):
-        menu = {
+        loaded_menu = {
             "pizza": 250,
             "burger": 150,
             "fries": 90,
             "coke": 40
         }
+
+    menu.clear()
+    menu.update(loaded_menu)
 
 
 def daily_revenue():
@@ -82,19 +82,20 @@ def backup_orders(file="orders.json"):
 
 def restore_orders(file="orders.json"):
     """Restore orders from a JSON backup file."""
-    global orders
-
     try:
         with open(file, "r", encoding="utf-8") as backup_file:
             restored_data = json.load(backup_file)
 
-        orders = {
+        restored_orders = {
             int(order_id): order
             for order_id, order in restored_data.items()
         }
 
     except FileNotFoundError:
-        orders = {}
+        restored_orders = {}
+
+    orders.clear()
+    orders.update(restored_orders)
 
 
 def print_queue():
